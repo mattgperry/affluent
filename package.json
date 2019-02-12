@@ -1,0 +1,57 @@
+{
+  "name": "affluent",
+  "author": "Matt Perry",
+  "homepage": "https://inventingwithmonster.io/affluent",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "module": "dist/affluent.es.js",
+  "jsnext:main": "dist/affluent.es.js",
+  "unpkg": "./dist/affluent.min.js",
+  "scripts": {
+    "build": "rollup -c && npm run measure",
+    "watch": "rollup -c -w",
+    "test": "jest"
+  },
+  "devDependencies": {
+    "@types/jest": "^23.1.1",
+    "husky": "^1.1.2",
+    "jest": "^23.1.0",
+    "jest-cli": "^23.1.0",
+    "lint-staged": "^7.3.0",
+    "prettier": "^1.14.3",
+    "styled-components": "^4.1.1",
+    "ts-jest": "^22.4.6",
+    "tslint": "^5.11.0",
+    "typescript": "^2.9.2"
+  },
+  "prettier": {
+    "parser": "typescript",
+    "singleQuote": true
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "prettier --write",
+      "git add"
+    ]
+  },
+  "dependencies": {
+    "tslint-config-prettier": "^1.15.0",
+    "tslint-react": "^3.6.0"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "ts",
+      "js"
+    ],
+    "transform": {
+      "\\.(ts)$": "../node_modules/ts-jest/preprocessor.js"
+    },
+    "testRegex": "/_tests/.*\\.(ts|js)$",
+    "rootDir": "src"
+  }
+}
