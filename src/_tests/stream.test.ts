@@ -28,11 +28,36 @@ describe('stream', () => {
         };
       });
 
-      const { stop } = testStream({}).start(v => {
+      const { stop } = testStream().start(v => {
         streamCount = v;
       });
     });
 
     return expect(promise).resolves.toBe(target - 1);
+  });
+
+  test('stream can stop itself', async () => {
+    const promise = new Promise(async resolve => {
+      const test = stream(({ complete }) => {
+        let count = 0;
+        return () => {
+          count += 2;
+
+          if (count === 4) {
+            complete();
+          }
+
+          return count;
+        };
+      });
+
+      let history = [];
+      test().start({
+        complete: () => resolve(history),
+        update: v => history.push(v)
+      });
+    });
+
+    return expect(promise).resolves.toEqual([2, 4]);
   });
 });

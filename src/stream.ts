@@ -8,6 +8,17 @@ export type GetLatest = (props: Props, frame: FrameData) => any;
 
 export type OnUpdate = (v: any) => any;
 
+export type Subscription = { update?: OnUpdate; complete?: OnUpdate };
+
+export type SubscriptionDefinition = OnUpdate | Subscription;
+
+export type Observable = {
+  update?: GetLatest;
+  complete?: () => void;
+};
+
+export type ObservableDefinition = Observable | GetLatest;
+
 export type Lifecycle = {
   error: (err: Error) => void;
   complete: () => void;
@@ -29,15 +40,34 @@ const isStream = (v: any): v is ActiveStream => {
   return typeof v !== 'undefined' && v.hasOwnProperty('start');
 };
 
+const resolveSubscription = (
+  subscription: SubscriptionDefinition
+): Subscription => {
+  if (typeof subscription === 'function') {
+    return { update: subscription };
+  } else {
+    return subscription;
+  }
+};
+
+const resolveObservable = (observable: ObservableDefinition): Observable => {
+  if (typeof observable === 'function') {
+    return { update: observable };
+  } else {
+    return observable;
+  }
+};
+
 const startStream = (
   create: StreamFactory,
   props: Props,
-  onUpdate: OnUpdate
+  subscriptionDefinition: Subscription
 ): ActiveStream => {
   let latest: any;
   let lastUpdated = 0;
   const resolvedProps = { ...props };
   const activeProps: { [key: string]: ActiveStream } = {};
+  const subscription = resolveSubscription(subscriptionDefinition);
 
   const toResolve = Object.keys(props).filter(key => isStream(props[key]));
   const numToResolve = toResolve.length;
@@ -49,15 +79,17 @@ const startStream = (
     }
   }
 
-  const getLatest = create({
-    error: handleError,
-    complete: () => stop,
-    initial: { ...resolvedProps }
-  });
+  const observable = resolveObservable(
+    create({
+      error: handleError,
+      complete: () => stop(),
+      initial: { ...resolvedProps }
+    })
+  );
 
   const update = (frame: FrameData) => {
     if (frame.timestamp !== lastUpdated) {
-      latest = getLatest(resolvedProps, frame);
+      latest = observable.update(resolvedProps, frame);
     }
 
     lastUpdated = frame.timestamp;
@@ -65,7 +97,10 @@ const startStream = (
   };
 
   const updateListener = (frame: FrameData) => {
-    onUpdate(update(frame));
+    update(frame);
+    if (subscription.update) {
+      subscription.update(latest);
+    }
   };
 
   updateListener(getFrameData());
@@ -78,6 +113,14 @@ const startStream = (
     for (const key in activeProps) {
       activeProps[key].stop();
     }
+
+    if (subscription.complete) {
+      subscription.complete(latest);
+    }
+
+    if (observable.complete) {
+      observable.complete();
+    }
   };
 
   return {
@@ -87,7 +130,8 @@ const startStream = (
 };
 
 export const stream = (create: StreamFactory) => {
-  return (props: Props) => ({
-    start: (onUpdate: OnUpdate) => startStream(create, props, onUpdate)
+  return (props: Props = {}) => ({
+    start: (subscription: Subscription) =>
+      startStream(create, props, subscription)
   });
 };
