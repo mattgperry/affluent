@@ -60,4 +60,107 @@ describe('stream', () => {
 
     return expect(promise).resolves.toEqual([2, 4]);
   });
+
+  test('stream resolve static props', async () => {
+    const promise = new Promise(async resolve => {
+      const test = stream(({ complete }) => {
+        let count = 0;
+        return ({ increment }) => {
+          count += increment;
+
+          if (count >= 10) {
+            complete();
+          }
+
+          return count;
+        };
+      });
+
+      let history = [];
+      test({ increment: 4 }).start({
+        complete: () => resolve(history),
+        update: v => history.push(v)
+      });
+    });
+
+    return expect(promise).resolves.toEqual([4, 8, 12]);
+  });
+
+  test('stream resolve dynamic props', async () => {
+    const promise = new Promise(async resolve => {
+      const test = stream(({ complete }) => {
+        let count = 0;
+        return ({ increment }) => {
+          count += increment;
+
+          if (count >= 10) {
+            complete();
+          }
+
+          return count;
+        };
+      });
+
+      let history = [];
+      test({ increment: test({ increment: 1 }) }).start({
+        complete: () => resolve(history),
+        update: v => history.push(v)
+      });
+    });
+
+    return expect(promise).resolves.toEqual([1, 3, 6, 10]);
+  });
+
+  test('pipe', async () => {
+    const promise = new Promise(async resolve => {
+      const test = stream(({ complete }) => {
+        let count = 0;
+        return ({ increment }) => {
+          count += increment;
+
+          if (count >= 10) {
+            complete();
+          }
+
+          return count;
+        };
+      });
+
+      let history = [];
+      test({ increment: test({ increment: 1 }).pipe(v => v * 2) }).start({
+        complete: () => resolve(history),
+        update: v => history.push(v)
+      });
+    });
+
+    return expect(promise).resolves.toEqual([2, 6, 12]);
+  });
+
+  test('pipe order', async () => {
+    const promise = new Promise(async resolve => {
+      const test = stream(({ complete }) => {
+        let count = 0;
+        return ({ increment }) => {
+          count += increment;
+
+          if (count >= 8) {
+            complete();
+          }
+
+          return count;
+        };
+      });
+
+      let history = [];
+      test({ increment: 2 })
+        .pipe(v => v * 2)
+        .pipe(v => v - 1)
+        .start({
+          complete: () => resolve(history),
+          update: v => history.push(v)
+        });
+    });
+
+    return expect(promise).resolves.toEqual([3, 7, 11, 15]);
+  });
 });

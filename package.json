@@ -48,6 +48,7 @@
     ]
   },
   "dependencies": {
+    "@popmotion/popcorn": "^0.3.1",
     "framesync": "^4.0.2"
   },
   "jest": {

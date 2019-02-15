@@ -32,11 +32,28 @@ var handleError = function (err) {
 var isStream = function (v) {
     return typeof v !== 'undefined' && v.hasOwnProperty('start');
 };
-var startStream = function (create, props, onUpdate) {
+var resolveSubscription = function (subscription) {
+    if (typeof subscription === 'function') {
+        return { update: subscription };
+    }
+    else {
+        return subscription;
+    }
+};
+var resolveObservable = function (observable) {
+    if (typeof observable === 'function') {
+        return { update: observable };
+    }
+    else {
+        return observable;
+    }
+};
+var startStream = function (create, props, subscriptionDefinition) {
     var latest;
     var lastUpdated = 0;
     var resolvedProps = __assign({}, props);
     var activeProps = {};
+    var subscription = resolveSubscription(subscriptionDefinition);
     var toResolve = Object.keys(props).filter(function (key) { return isStream(props[key]); });
     var numToResolve = toResolve.length;
     if (numToResolve) {
@@ -48,20 +65,23 @@ var startStream = function (create, props, onUpdate) {
             _loop_1(i);
         }
     }
-    var getLatest = create({
+    var observable = resolveObservable(create({
         error: handleError,
-        complete: function () { return stop; },
+        complete: function () { return stop(); },
         initial: __assign({}, resolvedProps)
-    });
+    }));
     var update = function (frame) {
         if (frame.timestamp !== lastUpdated) {
-            latest = getLatest(resolvedProps, frame);
+            latest = observable.update(resolvedProps, frame);
         }
         lastUpdated = frame.timestamp;
         return latest;
     };
     var updateListener = function (frame) {
-        onUpdate(update(frame));
+        update(frame);
+        if (subscription.update) {
+            subscription.update(latest);
+        }
     };
     updateListener(getFrameData());
     sync.update(updateListener, true);
@@ -70,6 +90,12 @@ var startStream = function (create, props, onUpdate) {
         for (var key in activeProps) {
             activeProps[key].stop();
         }
+        if (subscription.complete) {
+            subscription.complete(latest);
+        }
+        if (observable.complete) {
+            observable.complete();
+        }
     };
     return {
         stop: stop,
@@ -77,9 +103,14 @@ var startStream = function (create, props, onUpdate) {
     };
 };
 var stream = function (create) {
-    return function (props) { return ({
-        start: function (onUpdate) { return startStream(create, props, onUpdate); }
-    }); };
+    return function (props) {
+        if (props === void 0) { props = {}; }
+        return ({
+            start: function (subscription) {
+                return startStream(create, props, subscription);
+            }
+        });
+    };
 };
 
 export { stream };
