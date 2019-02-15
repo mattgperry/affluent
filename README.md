@@ -1,4 +1,4 @@
-# <img src="https://user-images.githubusercontent.com/7850794/52860105-6d132400-3126-11e9-8aa3-69e6b1015d00.png" alt="Affluent" width="300" />
+# <img src="https://user-images.githubusercontent.com/7850794/52860105-6d132400-3126-11e9-8aa3-69e6b1015d00.png" alt="Affluent" width="300" height="75" />
 
 A reactive stream primitive that natively supports other streams as input.
 
