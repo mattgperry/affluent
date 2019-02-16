@@ -30,7 +30,7 @@
     "tslint": "^5.11.0",
     "tslint-config-prettier": "^1.15.0",
     "tslint-react": "^3.6.0",
-    "typescript": "^2.9.2"
+    "typescript": "^3.3.3"
   },
   "prettier": {
     "parser": "typescript",
@@ -62,5 +62,5 @@
     "testRegex": "/_tests/.*\\.(ts|js)$",
     "rootDir": "src"
   },
-  "version": "0.0.1"
+  "version": "0.1.0"
 }

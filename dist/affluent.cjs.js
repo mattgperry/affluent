@@ -4,8 +4,32 @@ Object.defineProperty(exports, '__esModule', { value: true });
 
 function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
 
+var popcorn = require('@popmotion/popcorn');
 var sync = require('framesync');
 var sync__default = _interopDefault(sync);
+
+var handleError = function (err) {
+    throw err;
+};
+var isStream = function (v) {
+    return typeof v !== 'undefined' && v.hasOwnProperty('start');
+};
+var resolveSubscription = function (subscription) {
+    if (typeof subscription === 'function') {
+        return { update: subscription };
+    }
+    else {
+        return subscription;
+    }
+};
+var resolveObservable = function (observable) {
+    if (typeof observable === 'function') {
+        return { update: observable };
+    }
+    else {
+        return observable;
+    }
+};
 
 /*! *****************************************************************************
 Copyright (c) Microsoft Corporation. All rights reserved.
@@ -33,34 +57,11 @@ var __assign = function() {
     return __assign.apply(this, arguments);
 };
 
-var handleError = function (err) {
-    throw err;
-};
-var isStream = function (v) {
-    return typeof v !== 'undefined' && v.hasOwnProperty('start');
-};
-var resolveSubscription = function (subscription) {
-    if (typeof subscription === 'function') {
-        return { update: subscription };
-    }
-    else {
-        return subscription;
-    }
-};
-var resolveObservable = function (observable) {
-    if (typeof observable === 'function') {
-        return { update: observable };
-    }
-    else {
-        return observable;
-    }
-};
-var startStream = function (create, props, subscriptionDefinition) {
+var startStream = function (create, props, defaultProps, subscription) {
     var latest;
     var lastUpdated = 0;
-    var resolvedProps = __assign({}, props);
+    var resolvedProps = __assign({}, defaultProps, props);
     var activeProps = {};
-    var subscription = resolveSubscription(subscriptionDefinition);
     var toResolve = Object.keys(props).filter(function (key) { return isStream(props[key]); });
     var numToResolve = toResolve.length;
     if (numToResolve) {
@@ -75,7 +76,7 @@ var startStream = function (create, props, subscriptionDefinition) {
     var observable = resolveObservable(create({
         error: handleError,
         complete: function () { return stop(); },
-        initial: __assign({}, resolvedProps)
+        initialProps: __assign({}, resolvedProps)
     }));
     var update = function (frame) {
         if (frame.timestamp !== lastUpdated) {
@@ -109,15 +110,29 @@ var startStream = function (create, props, subscriptionDefinition) {
         pull: function () { return update(sync.getFrameData()); }
     };
 };
-var stream = function (create) {
-    return function (props) {
-        if (props === void 0) { props = {}; }
-        return ({
-            start: function (subscription) {
-                return startStream(create, props, subscription);
+
+var stream = function (create, defaultProps) {
+    var definedStream = function (props, transformer) {
+        return {
+            start: function (subscriptionDefinition) {
+                var subscription = resolveSubscription(subscriptionDefinition);
+                if (transformer) {
+                    var update_1 = subscription.update;
+                    subscription.update = function (v) { return update_1(transformer(v)); };
+                }
+                return startStream(create, props, defaultProps, subscription);
+            },
+            pipe: function () {
+                var funcs = [];
+                for (var _i = 0; _i < arguments.length; _i++) {
+                    funcs[_i] = arguments[_i];
+                }
+                var piped = popcorn.pipe.apply(void 0, [transformer].concat(funcs).filter(Boolean));
+                return definedStream(props, piped);
             }
-        });
+        };
     };
+    return definedStream;
 };
 
 exports.stream = stream;

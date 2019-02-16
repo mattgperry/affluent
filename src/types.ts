@@ -1,8 +1,8 @@
 import { FrameData } from 'framesync';
 
-export type Props = {
+export interface Props {
   [key: string]: any;
-};
+}
 
 export type GetLatest<P, V> = (props: P, frame: FrameData) => V;
 

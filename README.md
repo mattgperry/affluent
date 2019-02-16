@@ -7,15 +7,13 @@ A reactive stream primitive that natively supports other streams as input.
 This is a typical stream:
 
 ```javascript
-spring({
-  from: 0,
-  to: 100
-}).start(v => v)
+spring({ from: 0,  to: 100 })
+  .start(v => v)
 ```
 
 It accepts numbers and strings as props to affect the way it behaves, and emits values to a function.
 
-An Affluent stream is the same, except it can optionally accept other streams as props:
+An Affluent stream is the same, except those props can be other streams.
 
 ```javascript
 spring({
@@ -26,7 +24,7 @@ spring({
 
 Now every prop can be a dynamic stream.
 
-These streams above don't exist yet, but when they do, they'll be built with Affluent.
+These streams above don't exist yet, but when they do, they can be built with Affluent.
 
 ## Install
 

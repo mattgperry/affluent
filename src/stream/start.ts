@@ -10,7 +10,7 @@ export const startStream = <P extends Props, V>(
 ): ActiveStream => {
   let latest: V;
   let lastUpdated = 0;
-  const resolvedProps = { ...defaultProps, ...props };
+  const resolvedProps: P = { ...defaultProps, ...props };
   const activeProps: { [key: string]: ActiveStream } = {};
 
   const toResolve = Object.keys(props).filter(key => isStream(props[key]));
