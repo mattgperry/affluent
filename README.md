@@ -4,27 +4,29 @@ A reactive stream primitive that natively supports other streams as input.
 
 ## Say what?
 
-This is a stream:
+This is a typical stream:
 
 ```javascript
 spring({
+  from: 0,
   to: 100
 }).start(v => v)
 ```
 
-It accepts numbers and strings as props to affect the way it behaves.
+It accepts numbers and strings as props to affect the way it behaves, and emits values to a function.
 
-An Affluent stream can also accept other streams as props:
+An Affluent stream is the same, except it can optionally accept other streams as props:
 
 ```javascript
 spring({
+  from: 0,
   to: tween({ to: 100, yoyo: Infinity })
 }).start(v => v)
 ```
 
 Now every prop can be a dynamic stream.
 
-These examples don't exist yet, but when they do, they'll be built with Affluent.
+These streams above don't exist yet, but when they do, they'll be built with Affluent.
 
 ## Install
 
@@ -46,6 +48,10 @@ import { stream } from 'affluent'
 stream(init, defaultProps)
 ```
 
+The initialisation function returns an `update` function that will run once every frame that the stream is active.
+
+Here's a basic stream that outputs how many frames its been running:
+
 ```javascript
 const frameCount = stream(() => {
   let count = 0
@@ -57,9 +63,11 @@ const frameCount = stream(() => {
 })
 ```
 
-It returns an `update` function. This function is resolved once for every frame the stream is active.
+This `update` function receives on argument, the stream's props.
 
-The `update` function also receives one argument, the stream's props.
+If any of these props are also streams, those streams will be resolved prior to being passed to the `update` function.
+
+### Example
 
 Given this stream:
 
@@ -94,7 +102,7 @@ frameCount({ increment: 2 }).start(v => v)
 // 2, 4, 6...
 ```
 
-But we can also set `increment` as another stream. In the following code, `increment` will increase by `1` every frame:
+But we can also set `increment` as another stream. In the following code, `increment` itself will increase by `1` every frame:
 
 ```javascript
 frameCount({
@@ -133,7 +141,7 @@ const frameCount = stream(({ complete, initialProps }) => {
 })
 ```
 
-The stream returned can be turned
+The function can optionally return an object with both `update` and `complete` functions. `complete` will be fired either when the stream completes itself, or if its stopped externally.
 
 ### Stream instance
 
@@ -141,8 +149,43 @@ The stream returned can be turned
 
 Returns an active stream with a `stop` method.
 
+It can be provided a function that fires when the stream emits values:
+
+```javascript
+frameCount().start(v => { /* 1, 2, 3... */})
+```
+
+Or an object that defines `update` and/or `complete` functions:
+
+```javascript
+frameCount().start({
+  update: v => {/* 1, 2, 3... */},
+  complete: () => console.log('complete!')
+})
+```
+
 #### `pipe`
+
+Creates a new stream instance that runs all output through the functions provided to `pipe`, in order:
+
+```javascript
+const double = v => v * 2
+
+frameCount()
+  .pipe(double)
+  .start(/* 2, 4, 6... */)
+```
 
 ### Active stream
 
+The active stream returned from `start`.
+
 #### `stop`
+
+Stops the stream.
+
+```javascript
+const active = frameCount().start(v => v)
+
+active.stop()
+```

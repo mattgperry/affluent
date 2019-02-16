@@ -8,11 +8,23 @@ import {
 import { resolveSubscription } from './utils';
 import { startStream } from './start';
 
+/**
+ * Define a stream
+ *
+ * @param create - The factory function called every time a new stream
+ * of this type is initiated. Must returns a function to run once per frame.
+ * @param defaultProps - The default props to provide to the initialised stream.
+ */
 export const stream = <P extends Props, V>(
   create: StreamFactory<P, V>,
-  defaultProps: P
+  defaultProps?: P
 ) => {
-  return (props: P, transformer?: Transformer) => {
+  /**
+   * Stream type. When called with `props`, will return `start` and `pipe` API.
+   *
+   * @param props - Props object for this stream type.
+   */
+  const definedStream = (props?: P, transformer?: Transformer) => {
     return {
       start: (subscriptionDefinition: SubscriptionDefinition<V>) => {
         let subscription = resolveSubscription(subscriptionDefinition);
@@ -28,8 +40,10 @@ export const stream = <P extends Props, V>(
         const piped = pipe(
           ...[transformer, ...funcs].filter(Boolean)
         ) as Transformer;
-        return stream(create, defaultProps)(props, piped);
+        return definedStream(props, piped);
       }
     };
   };
+
+  return definedStream;
 };

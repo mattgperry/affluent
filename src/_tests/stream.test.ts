@@ -26,7 +26,7 @@ describe('stream', () => {
           i++;
           return i;
         };
-      });
+      }, {});
 
       const { stop } = testStream().start(v => {
         streamCount = v;
