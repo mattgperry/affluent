@@ -3,7 +3,8 @@ import {
   StreamFactory,
   Props,
   SubscriptionDefinition,
-  Transformer
+  Transformer,
+  ForkObservable
 } from 'types';
 import { resolveSubscription } from './utils';
 import { startStream } from './start';
@@ -17,7 +18,8 @@ import { startStream } from './start';
  */
 export const stream = <P extends Props, V>(
   create: StreamFactory<P, V>,
-  defaultProps?: P
+  defaultProps?: P,
+  fork?: ForkObservable<P, V>
 ) => {
   /**
    * Stream type. When called with `props`, will return `start` and `pipe` API.
@@ -34,7 +36,13 @@ export const stream = <P extends Props, V>(
           subscription.update = (v: V) => update(transformer(v));
         }
 
-        return startStream(create, props, defaultProps, subscription);
+        return startStream({
+          create,
+          props: props || {},
+          defaultProps,
+          subscription,
+          fork
+        });
       },
       pipe: (...funcs: Transformer[]) => {
         const piped = pipe(

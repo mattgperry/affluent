@@ -317,14 +317,6 @@
             return subscription;
         }
     };
-    var resolveObservable = function (observable) {
-        if (typeof observable === 'function') {
-            return { update: observable };
-        }
-        else {
-            return observable;
-        }
-    };
 
     /*! *****************************************************************************
     Copyright (c) Microsoft Corporation. All rights reserved.
@@ -352,9 +344,63 @@
         return __assign$2.apply(this, arguments);
     };
 
-    var startStream = function (create, props, defaultProps, subscription) {
-        var latest;
+    var resolveObservable = function (definition) {
+        var isComplete = false;
         var lastUpdated = 0;
+        var latest;
+        var update = typeof definition === 'function' ? definition : definition.update;
+        return {
+            update: function (props, frame) {
+                if (!isComplete && frame.timestamp !== lastUpdated) {
+                    lastUpdated = frame.timestamp;
+                    latest = update(props, frame);
+                }
+                return latest;
+            },
+            complete: function () {
+                isComplete = true;
+                if (typeof definition !== 'function' && definition.complete) {
+                    definition.complete();
+                }
+            }
+        };
+    };
+    var createObservable = function (create, complete, initialProps, fork) {
+        var unforkedObservable = function () {
+            return resolveObservable(create({
+                error: handleError,
+                complete: complete,
+                initialProps: initialProps
+            }));
+        };
+        if (!fork)
+            return unforkedObservable();
+        var forks = [];
+        var numCompleted = 0;
+        var forkComplete = function (i) { return function () {
+            numCompleted++;
+            forks[i].complete();
+            if (numCompleted >= forks.length)
+                complete();
+        }; };
+        var forkedObservable = fork({
+            create: function (forkInitialProps) {
+                var observable = resolveObservable(create({
+                    error: handleError,
+                    complete: forkComplete(forks.length),
+                    initialProps: forkInitialProps
+                }));
+                forks.push(observable);
+                return observable;
+            },
+            initialProps: initialProps
+        });
+        return forkedObservable
+            ? __assign$2({}, resolveObservable(forkedObservable), { complete: function () { return forks.forEach(function (thisFork) { return thisFork.complete(); }); } }) : unforkedObservable();
+    };
+
+    var startStream = function (config) {
+        var create = config.create, props = config.props, defaultProps = config.defaultProps, subscription = config.subscription, fork = config.fork;
         var resolvedProps = __assign$2({}, defaultProps, props);
         var activeProps = {};
         var toResolve = Object.keys(props).filter(function (key) { return isStream(props[key]); });
@@ -362,28 +408,21 @@
         if (numToResolve) {
             var _loop_1 = function (i) {
                 var key = toResolve[i];
-                activeProps[key] = props[key].start(function (v) { return (resolvedProps[key] = v); });
+                activeProps[key] = props[key].start(function (v) {
+                    resolvedProps[key] = v;
+                });
             };
             for (var i = 0; i < numToResolve; i++) {
                 _loop_1(i);
             }
         }
-        var observable = resolveObservable(create({
-            error: handleError,
-            complete: function () { return stop(); },
-            initialProps: __assign$2({}, resolvedProps)
-        }));
+        var observable = createObservable(create, function () { return stop(); }, __assign$2({}, resolvedProps), fork);
         var update = function (frame) {
-            if (frame.timestamp !== lastUpdated) {
-                latest = observable.update(resolvedProps, frame);
-            }
-            lastUpdated = frame.timestamp;
-            return latest;
+            return observable.update(resolvedProps, frame);
         };
         var updateListener = function (frame) {
-            update(frame);
             if (subscription.update) {
-                subscription.update(latest);
+                subscription.update(update(frame));
             }
         };
         updateListener(getFrameData());
@@ -394,11 +433,9 @@
                 activeProps[key].stop();
             }
             if (subscription.complete) {
-                subscription.complete(latest);
+                subscription.complete();
             }
-            if (observable.complete) {
-                observable.complete();
-            }
+            observable.complete();
         };
         return {
             stop: stop,
@@ -406,7 +443,7 @@
         };
     };
 
-    var stream = function (create, defaultProps) {
+    var stream = function (create, defaultProps, fork) {
         var definedStream = function (props, transformer) {
             return {
                 start: function (subscriptionDefinition) {
@@ -415,7 +452,13 @@
                         var update_1 = subscription.update;
                         subscription.update = function (v) { return update_1(transformer(v)); };
                     }
-                    return startStream(create, props, defaultProps, subscription);
+                    return startStream({
+                        create: create,
+                        props: props || {},
+                        defaultProps: defaultProps,
+                        subscription: subscription,
+                        fork: fork
+                    });
                 },
                 pipe: function () {
                     var funcs = [];

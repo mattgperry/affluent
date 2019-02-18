@@ -1,15 +1,26 @@
 import sync, { cancelSync, getFrameData, FrameData } from 'framesync';
-import { StreamFactory, Props, Subscription, ActiveStream } from '../types';
-import { isStream, resolveObservable, handleError } from './utils';
+import {
+  StreamFactory,
+  Props,
+  Subscription,
+  ActiveStream,
+  ForkObservable
+} from '../types';
+import { isStream } from './utils';
+import { createObservable } from './observable';
+
+export interface StreamConfig<P, V> {
+  create: StreamFactory<P, V>;
+  props: P;
+  defaultProps: P;
+  subscription: Subscription<V>;
+  fork?: ForkObservable<P, V>;
+}
 
 export const startStream = <P extends Props, V>(
-  create: StreamFactory<P, V>,
-  props: P,
-  defaultProps: P,
-  subscription: Subscription<V>
+  config: StreamConfig<P, V>
 ): ActiveStream => {
-  let latest: V;
-  let lastUpdated = 0;
+  const { create, props, defaultProps, subscription, fork } = config;
   const resolvedProps: P = { ...defaultProps, ...props };
   const activeProps: { [key: string]: ActiveStream } = {};
 
@@ -19,31 +30,26 @@ export const startStream = <P extends Props, V>(
   if (numToResolve) {
     for (let i = 0; i < numToResolve; i++) {
       const key = toResolve[i];
-      activeProps[key] = props[key].start((v: any) => (resolvedProps[key] = v));
+      activeProps[key] = props[key].start((v: any) => {
+        resolvedProps[key] = v;
+      });
     }
   }
 
-  const observable = resolveObservable(
-    create({
-      error: handleError,
-      complete: () => stop(),
-      initialProps: { ...resolvedProps }
-    })
+  const observable = createObservable(
+    create,
+    () => stop(),
+    { ...resolvedProps },
+    fork
   );
 
   const update = (frame: FrameData) => {
-    if (frame.timestamp !== lastUpdated) {
-      latest = observable.update(resolvedProps, frame);
-    }
-
-    lastUpdated = frame.timestamp;
-    return latest;
+    return observable.update(resolvedProps, frame) as V;
   };
 
   const updateListener = (frame: FrameData) => {
-    update(frame);
     if (subscription.update) {
-      subscription.update(latest);
+      subscription.update(update(frame));
     }
   };
 
@@ -59,16 +65,17 @@ export const startStream = <P extends Props, V>(
     }
 
     if (subscription.complete) {
-      subscription.complete(latest);
+      subscription.complete();
     }
 
-    if (observable.complete) {
-      observable.complete();
-    }
+    observable.complete();
   };
 
   return {
     stop,
+    /**
+     * @internal
+     */
     pull: () => update(getFrameData())
   };
 };

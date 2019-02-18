@@ -1,10 +1,4 @@
-import {
-  ActiveStream,
-  SubscriptionDefinition,
-  Subscription,
-  ObservableDefinition,
-  Observable
-} from '../types';
+import { ActiveStream, SubscriptionDefinition, Subscription } from '../types';
 
 export const handleError = (err: Error) => {
   throw err;
@@ -21,15 +15,5 @@ export const resolveSubscription = <V>(
     return { update: subscription };
   } else {
     return subscription;
-  }
-};
-
-export const resolveObservable = <P, V>(
-  observable: ObservableDefinition<P, V>
-): Observable<P, V> => {
-  if (typeof observable === 'function') {
-    return { update: observable };
-  } else {
-    return observable;
   }
 };
